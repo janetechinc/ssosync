@@ -75,7 +75,7 @@ func (ds *fileDatastore) Store() error {
 		encoder.SetIndent("", "    ")
 		err = encoder.Encode(&ds.users)
 		if err != nil {
-			log.Error("failed to encode user list to json: %s", err)
+			log.Errorf("failed to encode user list to json: %s", err)
 		}
 	}
 
@@ -89,7 +89,7 @@ func (ds *fileDatastore) Store() error {
 		encoder.SetIndent("", "    ")
 		err = encoder.Encode(&ds.groups)
 		if err != nil {
-			log.Error("failed to encode group list to json: %s", err)
+			log.Errorf("failed to encode group list to json: %s", err)
 		}
 	}
 	return err

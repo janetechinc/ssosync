@@ -37,26 +37,10 @@ func NewDatastore() (Datastore, error) {
 
 func (ds *baseDatastore) GetUsers() ([]string, error) {
     users := make([]string, 0, len(ds.users))
-    for name, _ := range ds.users {
+    for name := range ds.users {
         users = append(users, name)
     }
 	return users, nil
-/*
-	v := make([]*User, 0, len(ds.users))	
-	for  name, _ := range ds.users {
-		user, err := client.FindUserByEmail(name)
-		if err == ErrUserNotFound {
-			delete(ds.users, name)
-			log.Debugf("GetUsers removed non-existant user from list: %s", name)
-			continue
-		}
-		if err != nil {
-			log.Fatalf("GetUsers failed for '%s' with: %s", name, err)
-		}
-		v = append(v, user)
-	 }
-	 return v, nil
-*/
 }
 
 func (ds *baseDatastore) AddUser(user string) error {
@@ -77,26 +61,10 @@ func (ds *baseDatastore) DeleteUser(user string) error {
 
 func (ds *baseDatastore) GetGroups() ([]string, error) {
     groups := make([]string, 0, len(ds.groups))
-    for name, _ := range ds.groups {
+    for name := range ds.groups {
         groups = append(groups, name)
     }
 	return groups, nil
-/*
-	v := make([]*Group, 0, len(ds.groups))
-	for  name, _ := range ds.groups {
-		group, err := client.FindGroupByDisplayName(name)
-		if err == ErrGroupNotFound {
-			delete(ds.groups, name)
-			log.Debugf("GetGroups removed non-existant group from list: %s", name)
-			continue
-		}
-		if err != nil {
-			log.Fatalf("GetGroups failed for '%s' with: %s", name, err)
-		}
-		v = append(v, group)
-	 }
-	 return v, nil
-*/
 }
 
 func (ds *baseDatastore) AddGroup(group string) error {
