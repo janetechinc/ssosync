@@ -725,7 +725,7 @@ func DoSync(ctx context.Context, cfg *config.Config) error {
 		return err
 	}
 
-	ds, err := datastore.NewFileDatastore("./datastore-")
+	ds, err := datastore.NewDatastore(cfg)
 	if err != nil {
 		return err
 	}

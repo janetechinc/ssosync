@@ -31,6 +31,14 @@ type Config struct {
 	IncludeGroups []string `mapstructure:"include_groups"`
 	// SyncMethod allow to defined the sync method used to get the user and groups from Google Workspace
 	SyncMethod string `mapstructure:"sync_method"`
+	// Type of datastore 
+	DatastoreType string `mapstructure:"datastore_type"`
+	// Prefix or bucket name for datastores
+	DatastorePrefix string `mapstructure:"datastore_prefix"`
+	// name of the datastore user object or file
+	DatastoreUserObj string `mapstructure:"datastore_user_obj"`
+	// name of the datastore group object or file
+	DatastoreGroupObj string `mapstructure:"datastore_group_obj"`
 }
 
 const (
@@ -44,6 +52,11 @@ const (
 	DefaultGoogleCredentials = "credentials.json"
 	// DefaultSyncMethod is the default sync method to use.
 	DefaultSyncMethod = "groups"
+	// DefaultDatastoreType is the default datastore to use
+	DefaultDatastoreType = "file"
+	DefaultDatastorePrefix = "ssosync-"
+	DefaultDatastoreUserObj = "Users.json"
+	DefaultDatastoreGroupObj = "Groups.json"
 )
 
 // New returns a new Config
@@ -54,5 +67,9 @@ func New() *Config {
 		LogFormat:         DefaultLogFormat,
 		SyncMethod:        DefaultSyncMethod,
 		GoogleCredentials: DefaultGoogleCredentials,
+		DatastoreType:     DefaultDatastoreType,
+		DatastorePrefix:   DefaultDatastorePrefix,
+		DatastoreUserObj:  DefaultDatastoreUserObj,
+		DatastoreGroupObj: DefaultDatastoreGroupObj,
 	}
 }

@@ -10,10 +10,12 @@ import (
 
 type consulDatastore struct {
 	*baseDatastore
-	kv        *consulapi.KV
+	kv       *consulapi.KV
+	userKey  string
+	groupKey string
 }
 
-func NewConsulDatastore() (Datastore, error) {
+func NewConsulDatastore(prefix string, userObj string, groupObj string) (Datastore, error) {
 	consul, err := consulapi.NewClient(consulapi.DefaultConfig())
 	if err != nil {
 		return nil, err
@@ -21,32 +23,34 @@ func NewConsulDatastore() (Datastore, error) {
 
 	return &consulDatastore{
 		baseDatastore: newBaseDatastore(),
-		kv:        consul.KV(),
+		kv:       consul.KV(),
+		userKey:  prefix+userObj,
+		groupKey: prefix+groupObj,
 	}, nil
 }
 
 func (ds *consulDatastore) Load() error {
 	log.Info("Loading user/group lists from consul")
-	log.Info("loading users from 'aws-ssosync/users'")
+	log.Infof("loading users from '%s'", ds.userKey)
 
-	pair, _, err := ds.kv.Get("aws-ssosync/users", nil)
+	pair, _, err := ds.kv.Get(ds.userKey, nil)
 	if err != nil {
-		log.Error("error fetching consul KV aws-ssosync/users!", err)
+		log.Error("error fetching users:", err)
 	} else if pair == nil {
-		log.Error("consul KV aws-ssosync/users does not exist!", err)
+		log.Warningf("consul KV '%s' does not exist:", ds.userKey, err)
 	} else {
 		err = json.Unmarshal(pair.Value, &ds.users)
 		if err != nil {
-			log.Error("failed to parse user list JSON from consul", err)
+			log.Error("failed to parse user list JSON from consul:", err)
 		}
 	}
 
-	log.Info("loading groups from 'aws-ssosync/groups'")
-	pair, _, err = ds.kv.Get("aws-ssosync/groups", nil)
+	log.Infof("loading groups from '%s'", ds.groupKey)
+	pair, _, err = ds.kv.Get(ds.groupKey, nil)
 	if err != nil {
-		log.Error("error fetching consul KV aws-ssosync/users!", err)
+		log.Error("error fetching groups:", err)
 	} else if pair == nil {
-		log.Warn("consul KV aws-ssosync/groups does noty exist!", err)
+		log.Warningf("consul KV '%s'' does noty exist:", ds.groupKey, err)
 	} else {
 		err = json.Unmarshal(pair.Value, &ds.groups)
 		if err != nil {

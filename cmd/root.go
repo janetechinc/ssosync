@@ -109,6 +109,10 @@ func initConfig() {
 		"user_match",
 		"group_match",
 		"sync_method",
+		"datastore_type",
+		"datastore_prefix",
+		"datastore_user_name",
+		"datastore_group_name",
 	}
 
 	for _, e := range appEnvVars {
@@ -174,6 +178,10 @@ func addFlags(cmd *cobra.Command, cfg *config.Config) {
 	rootCmd.Flags().StringVarP(&cfg.UserMatch, "user-match", "m", "", "Google Workspace Users filter query parameter, example: 'name:John* email:admin*', see: https://developers.google.com/admin-sdk/directory/v1/guides/search-users")
 	rootCmd.Flags().StringSliceVarP(&cfg.GroupMatch, "group-match", "g", []string{""}, "Google Workspace Groups filter query parameter, example: 'name:Admin* email:aws-*', see: https://developers.google.com/admin-sdk/directory/v1/guides/search-groups (You can specify this flag multiple times for OR clause)")
 	rootCmd.Flags().StringVarP(&cfg.SyncMethod, "sync-method", "s", config.DefaultSyncMethod, "Sync method to use (users_groups|groups)")
+	rootCmd.Flags().StringVarP(&cfg.DatastoreType, "datastore-type", "D", config.DefaultDatastoreType, "Datastore type")
+	rootCmd.Flags().StringVarP(&cfg.DatastorePrefix, "datastore-prefix", "p", config.DefaultDatastorePrefix, "Datastore prefix or bucket")
+	rootCmd.Flags().StringVarP(&cfg.DatastoreUserObj, "datastore-user-obj", "", config.DefaultDatastoreUserObj, "Datastore object name for storing users")
+	rootCmd.Flags().StringVarP(&cfg.DatastoreGroupObj, "datastore-group-obj", "", config.DefaultDatastoreGroupObj, "Datastore object name for storing groups")
 }
 
 func logConfig(cfg *config.Config) {

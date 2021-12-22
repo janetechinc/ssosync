@@ -13,11 +13,11 @@ type fileDatastore struct {
 	groupFile string
 }
 
-func NewFileDatastore(prefix string) (Datastore, error) {
+func NewFileDatastore(prefix string, userObj string, groupObj string) (Datastore, error) {
 	return &fileDatastore{
 		baseDatastore: newBaseDatastore(),
-		userFile: fmt.Sprintf("%sUsers.json", prefix),
-		groupFile: fmt.Sprintf("%sGroups.json", prefix),
+		userFile:      prefix+userObj,
+		groupFile:     prefix+groupObj,
 	}, nil
 }
 

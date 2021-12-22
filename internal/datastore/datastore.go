@@ -3,6 +3,7 @@ package datastore
 import (
 	"fmt"
 
+	"github.com/awslabs/ssosync/internal/config"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -31,8 +32,13 @@ func newBaseDatastore() (*baseDatastore) {
 	}
 }
 
-func NewDatastore() (Datastore, error) {
-	return nil, fmt.Errorf("no Datastore implementstions available!")
+func NewDatastore(cfg *config.Config) (Datastore, error) {
+	if cfg.DatastoreType == "file" {
+		return NewFileDatastore(cfg.DatastorePrefix, cfg.DatastoreUserObj, cfg.DatastoreGroupObj)
+	} else if cfg.DatastoreType == "consul" {
+		return NewConsulDatastore(cfg.DatastorePrefix, cfg.DatastoreUserObj, cfg.DatastoreGroupObj)
+	}
+	return nil, fmt.Errorf("unknown datastore type: %s", cfg.DatastoreType)
 }
 
 func (ds *baseDatastore) GetUsers() ([]string, error) {
