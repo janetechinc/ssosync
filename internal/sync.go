@@ -724,12 +724,22 @@ func DoSync(ctx context.Context, cfg *config.Config) error {
 		return err
 	}
 
+	ds, err := aws.NewConsulDatastore()
+	if err != nil {
+		return err
+	}
+
 	awsClient, err := aws.NewClient(
 		httpClient,
 		&aws.Config{
 			Endpoint: cfg.SCIMEndpoint,
 			Token:    cfg.SCIMAccessToken,
-		})
+		}, ds)
+	if err != nil {
+		return err
+	}
+
+	err = ds.Load(awsClient)
 	if err != nil {
 		return err
 	}
@@ -752,6 +762,11 @@ func DoSync(ctx context.Context, cfg *config.Config) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	err = ds.Store()
+	if err != nil {
+		return err
 	}
 
 	return nil

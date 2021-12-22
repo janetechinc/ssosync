@@ -69,12 +69,13 @@ type client struct {
 	httpClient  HttpClient
 	endpointURL *url.URL
 	bearerToken string
+	datastore Datastore
 }
 
 // NewClient creates a new client to talk with AWS SSO's SCIM endpoint. It
 // requires a http.Client{} as well as the URL and bearer token from the
 // console. If the URL is not parsable, an error will be thrown.
-func NewClient(c HttpClient, config *Config) (Client, error) {
+func NewClient(c HttpClient, config *Config, ds Datastore) (Client, error) {
 	u, err := url.Parse(config.Endpoint)
 	if err != nil {
 		return nil, err
@@ -83,6 +84,7 @@ func NewClient(c HttpClient, config *Config) (Client, error) {
 		httpClient:  c,
 		endpointURL: u,
 		bearerToken: config.Token,
+		datastore: ds,
 	}, nil
 }
 
@@ -365,9 +367,14 @@ func (c *client) CreateUser(u *User) (*User, error) {
 		return nil, err
 	}
 	if newUser.ID == "" {
-		return c.FindUserByEmail(u.Username)
+		u, err := c.FindUserByEmail(u.Username)
+		if err == nil {
+			c.datastore.AddUser(u)
+		}
+		return u, err
 	}
 
+	c.datastore.AddUser(&newUser)
 	return &newUser, nil
 }
 
@@ -420,6 +427,8 @@ func (c *client) DeleteUser(u *User) error {
 		return err
 	}
 
+	c.datastore.DeleteUser(u)
+
 	log.WithFields(log.Fields{"user": u.Username}).Debug(string(resp))
 
 	return nil
@@ -450,6 +459,8 @@ func (c *client) CreateGroup(g *Group) (*Group, error) {
 		return nil, err
 	}
 
+	c.datastore.AddGroup(&newGroup)
+
 	return &newGroup, nil
 }
 
@@ -475,7 +486,9 @@ func (c *client) DeleteGroup(g *Group) error {
 
 // GetGroups will return existing groups
 func (c *client) GetGroups() ([]*Group, error) {
-	startURL, err := url.Parse(c.endpointURL.String())
+	return c.datastore.GetGroups()
+/*
+ 	startURL, err := url.Parse(c.endpointURL.String())
 	if err != nil {
 		return nil, err
 	}
@@ -504,6 +517,7 @@ func (c *client) GetGroups() ([]*Group, error) {
 	}
 
 	return gps, nil
+ */
 }
 
 // GetGroupMembers will return existing groups
@@ -554,6 +568,8 @@ func (c *client) GetGroupMembers(g *Group) ([]*User, error) {
 
 // GetUsers will return existing users
 func (c *client) GetUsers() ([]*User, error) {
+	return c.datastore.GetUsers()
+/* 
 	startURL, err := url.Parse(c.endpointURL.String())
 	if err != nil {
 		return nil, err
@@ -583,4 +599,5 @@ func (c *client) GetUsers() ([]*User, error) {
 	}
 
 	return usrs, nil
+ */
 }

@@ -8,6 +8,7 @@ require (
 	github.com/aws/aws-sdk-go v1.38.36
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/golang/mock v1.5.0
+	github.com/hashicorp/consul/api v1.12.0
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.0
 	github.com/magiconair/properties v1.8.5 // indirect
