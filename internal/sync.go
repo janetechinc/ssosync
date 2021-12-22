@@ -22,6 +22,7 @@ import (
 
 	"github.com/awslabs/ssosync/internal/aws"
 	"github.com/awslabs/ssosync/internal/config"
+	"github.com/awslabs/ssosync/internal/datastore"
 	"github.com/awslabs/ssosync/internal/google"
 	"github.com/hashicorp/go-retryablehttp"
 
@@ -724,7 +725,7 @@ func DoSync(ctx context.Context, cfg *config.Config) error {
 		return err
 	}
 
-	ds, err := aws.NewConsulDatastore()
+	ds, err := datastore.NewFileDatastore("./datastore-")
 	if err != nil {
 		return err
 	}
@@ -739,7 +740,7 @@ func DoSync(ctx context.Context, cfg *config.Config) error {
 		return err
 	}
 
-	err = ds.Load(awsClient)
+	err = ds.Load()
 	if err != nil {
 		return err
 	}

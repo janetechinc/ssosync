@@ -1,4 +1,4 @@
-package aws
+package datastore
 
 import (
 	"encoding/json"
@@ -25,7 +25,7 @@ func NewConsulDatastore() (Datastore, error) {
 	}, nil
 }
 
-func (ds *consulDatastore) Load(client Client) error {
+func (ds *consulDatastore) Load() error {
 	log.Info("Loading user/group lists from consul")
 	log.Info("loading users from 'aws-ssosync/users'")
 
@@ -38,19 +38,6 @@ func (ds *consulDatastore) Load(client Client) error {
 		err = json.Unmarshal(pair.Value, &ds.users)
 		if err != nil {
 			log.Error("failed to parse user list JSON from consul", err)
-		}
-	}
-
-	log.Info("cleaning the just loaded user list")
-	for name, _ := range ds.users {
-		_, err := client.FindUserByEmail(name)
-		if err == ErrUserNotFound {
-			delete(ds.users, name)
-			log.Debugf("VerifyUsers removed: %s", name)
-			continue
-		}
-		if err != nil {
-			log.Warningf("validate aws user failed for '%s' with: %s", name, err)
 		}
 	}
 
@@ -67,18 +54,6 @@ func (ds *consulDatastore) Load(client Client) error {
 		}
 	}
 
-	log.Info("cleaning the just loaded group list")
-	for name, _ := range ds.groups {
-		_, err := client.FindGroupByDisplayName(name)
-		if err == ErrGroupNotFound {
-			delete(ds.groups, name)
-			log.Debugf("VeriftGroups removed: %s", name)
-			continue
-		}
-		if err != nil {
-			log.Warningf("validate aws group failed for '%s' with: %s", name, err)
-		}
-	}
 	return err
 }
 

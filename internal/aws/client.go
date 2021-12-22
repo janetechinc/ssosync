@@ -24,6 +24,8 @@ import (
 	"net/url"
 	"path"
 
+	"github.com/awslabs/ssosync/internal/datastore"
+
 	log "github.com/sirupsen/logrus"
 )
 
@@ -69,13 +71,13 @@ type client struct {
 	httpClient  HttpClient
 	endpointURL *url.URL
 	bearerToken string
-	datastore Datastore
+	datastore datastore.Datastore
 }
 
 // NewClient creates a new client to talk with AWS SSO's SCIM endpoint. It
 // requires a http.Client{} as well as the URL and bearer token from the
 // console. If the URL is not parsable, an error will be thrown.
-func NewClient(c HttpClient, config *Config, ds Datastore) (Client, error) {
+func NewClient(c HttpClient, config *Config, ds datastore.Datastore) (Client, error) {
 	u, err := url.Parse(config.Endpoint)
 	if err != nil {
 		return nil, err
@@ -344,6 +346,23 @@ func (c *client) FindGroupByDisplayName(name string) (*Group, error) {
 
 // CreateUser will create the user specified
 func (c *client) CreateUser(u *User) (*User, error) {
+	//
+	// add the user and save the list
+	// we do this first so that if there is a failure but the user
+	// was created we have the user saved.  Its ok if we add a user
+	// to the data store that did not get created because non-existant
+	// aws users are pruned wgen GetUsers is called on the datastore.
+	err := c.datastore.AddUser(u.Username)
+	if err != nil {
+		log.WithFields(log.Fields{"user": u.Username}).Errorf("CreateUser failed to add user to datastore: %s", err)
+		return nil, err
+	}
+	err = c.datastore.Store()
+	if err != nil {
+		log.WithFields(log.Fields{"user": u.Username}).Errorf("CreateUser failed to persist datastore: %s", err)
+		return nil, err
+	}
+
 	startURL, err := url.Parse(c.endpointURL.String())
 	if err != nil {
 		return nil, err
@@ -367,14 +386,9 @@ func (c *client) CreateUser(u *User) (*User, error) {
 		return nil, err
 	}
 	if newUser.ID == "" {
-		u, err := c.FindUserByEmail(u.Username)
-		if err == nil {
-			c.datastore.AddUser(u)
-		}
-		return u, err
+		return c.FindUserByEmail(u.Username)
 	}
 
-	c.datastore.AddUser(&newUser)
 	return &newUser, nil
 }
 
@@ -427,7 +441,17 @@ func (c *client) DeleteUser(u *User) error {
 		return err
 	}
 
-	c.datastore.DeleteUser(u)
+	// delete the uset and save the datastore
+	err = c.datastore.DeleteUser(u.Username)
+	if err != nil {
+		log.WithFields(log.Fields{"user": u.Username}).Errorf("DeleteUser failed to delete user from datastore: %s", err)
+		return err
+	}
+	err = c.datastore.Store()
+	if err != nil {
+		log.WithFields(log.Fields{"user": u.Username}).Errorf("DeleteUser failed to persist datastore: %s", err)
+		return err
+	}
 
 	log.WithFields(log.Fields{"user": u.Username}).Debug(string(resp))
 
@@ -436,6 +460,23 @@ func (c *client) DeleteUser(u *User) error {
 
 // CreateGroup will create a group given
 func (c *client) CreateGroup(g *Group) (*Group, error) {
+	//
+	// add the group and save the list
+	// we do this first so that if there is a failure but the group
+	// was created we have the group saved.  Its ok if we add a group
+	// to the data store that did not get created because non-existant
+	// aws groups are pruned when GetGroups is called on the datastore.
+	err := c.datastore.AddGroup(g.DisplayName)
+	if err != nil {
+		log.WithFields(log.Fields{"group": g.DisplayName}).Errorf("CreateGroup failed to add group to datastore: %s", err)
+		return nil, err
+	}
+	err = c.datastore.Store()
+	if err != nil {
+		log.WithFields(log.Fields{"group": g.DisplayName}).Errorf("CreateGroup failed to persist datastore: %s", err)
+		return nil, err
+	}
+
 	startURL, err := url.Parse(c.endpointURL.String())
 	if err != nil {
 		return nil, err
@@ -459,8 +500,6 @@ func (c *client) CreateGroup(g *Group) (*Group, error) {
 		return nil, err
 	}
 
-	c.datastore.AddGroup(&newGroup)
-
 	return &newGroup, nil
 }
 
@@ -480,13 +519,53 @@ func (c *client) DeleteGroup(g *Group) error {
 	if err != nil {
 		return err
 	}
+	// delete the uset and save the datastore
+	err = c.datastore.DeleteGroup(g.DisplayName)
+	if err != nil {
+		log.WithFields(log.Fields{"group": g.DisplayName}).Errorf("DeleteGroup failed to delete group from datastore: %s", err)
+		return err
+	}
+	err = c.datastore.Store()
+	if err != nil {
+		log.WithFields(log.Fields{"group": g.DisplayName}).Errorf("DeleteGroup failed to persist datastore: %s", err)
+		return err
+	}
 
 	return nil
 }
 
 // GetGroups will return existing groups
 func (c *client) GetGroups() ([]*Group, error) {
-	return c.datastore.GetGroups()
+	// we have to use an external datastore to track users and groups because the aws api
+	// will only return the first 50 users and has no pagination options!
+	groupNames, err := c.datastore.GetGroups()
+	if err != nil {
+		return nil, err
+	}
+
+	// fetch each group from AWS skipping any groups that do not exist
+	groups := make([]*Group, 0, len(groupNames))
+	for _, name := range groupNames {
+		log := log.WithFields(log.Fields{"group": name})
+		log.Info("checking if group exists in AWS")
+		group, err := c.FindGroupByDisplayName(name)
+		if err == ErrGroupNotFound {
+			err = c.datastore.DeleteGroup(name)
+			if err != nil {
+				log.Warning("GetGroups failed to remove group from datastore")
+			} else {
+				log.Info("GetGroups removed non-existant group from list")
+			}
+			continue
+		}
+		if err != nil {
+			log.Errorf("GetGroups failed to find user! with: %s", err)
+			return nil, err
+		}
+		groups = append(groups, group)
+	}
+	return groups, nil
+
 /*
  	startURL, err := url.Parse(c.endpointURL.String())
 	if err != nil {
@@ -568,8 +647,37 @@ func (c *client) GetGroupMembers(g *Group) ([]*User, error) {
 
 // GetUsers will return existing users
 func (c *client) GetUsers() ([]*User, error) {
-	return c.datastore.GetUsers()
-/* 
+	// we have to use an external datastore to track users and groups because the aws api
+	// will only return the first 50 users and has no pagination options!
+	userNames, err := c.datastore.GetUsers()
+	if err != nil {
+		return nil, err
+	}
+
+	// fetch each user from AWS skipping any users that do not exist
+	users := make([]*User, 0, len(userNames))
+	for _, name := range userNames {
+		log := log.WithFields(log.Fields{"user": name})
+		log.Info("checking if user exists in AWS")
+		user, err := c.FindUserByEmail(name)
+		if err == ErrUserNotFound {
+			err = c.datastore.DeleteUser(name)
+			if err != nil {
+				log.Error("GetUsers failed to remove user from datastore")
+			} else {
+				log.Info("GetUsers removed non-existant user from list")
+			}
+			continue
+		}
+		if err != nil {
+			log.Errorf("GetUsers failed to find user! with: %s", err)
+			return nil, err
+		}
+		users = append(users, user)
+	}
+	return users, nil
+
+	/* 
 	startURL, err := url.Parse(c.endpointURL.String())
 	if err != nil {
 		return nil, err
