@@ -37,6 +37,8 @@ func NewDatastore(cfg *config.Config) (Datastore, error) {
 		return NewFileDatastore(cfg.DatastorePrefix, cfg.DatastoreUserObj, cfg.DatastoreGroupObj)
 	} else if cfg.DatastoreType == "consul" {
 		return NewConsulDatastore(cfg.DatastorePrefix, cfg.DatastoreUserObj, cfg.DatastoreGroupObj)
+	} else if cfg.DatastoreType == "s3" {
+		return NewS3Datastore(cfg.DatastorePrefix, cfg.DatastoreUserObj, cfg.DatastoreGroupObj)
 	}
 	return nil, fmt.Errorf("unknown datastore type: %s", cfg.DatastoreType)
 }
