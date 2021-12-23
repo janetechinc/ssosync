@@ -138,7 +138,7 @@ func (c *client) sendRequest(method string, url string) (response []byte, err er
 		return
 	}
 
-	log.WithFields(log.Fields{"url": url, "method": method})
+	log := log.WithFields(log.Fields{"url": url, "method": method})
 
 	r.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.bearerToken))
 
@@ -154,6 +154,7 @@ func (c *client) sendRequest(method string, url string) (response []byte, err er
 	}
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode > http.StatusNoContent {
+		log.Errorf("sendRequest recieved an %d status code", resp.StatusCode)
 		err = fmt.Errorf("status of http response was %d", resp.StatusCode)
 	}
 
@@ -559,7 +560,7 @@ func (c *client) GetGroups() ([]*Group, error) {
 			continue
 		}
 		if err != nil {
-			log.Errorf("GetGroups failed to find user! with: %s", err)
+			log.Errorf("GetGroups failed to find group! with: %s", err)
 			return nil, err
 		}
 		groups = append(groups, group)

@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"strings"
 
 	"github.com/awslabs/ssosync/internal/aws"
 	"github.com/awslabs/ssosync/internal/config"
@@ -584,6 +585,9 @@ func (s *syncGSuite) getGroups(queries []string) ([]*admin.Group, error) {
 	groups := make([]*admin.Group, len(uniqueGroups))
 	var i int
 	for _, group := range uniqueGroups {
+		// TODO: remove this when aws fixes this: aws request parsing bug: rename groups containg " and "
+		// - These cause AWS to mis-parse the request and return a 400 status code
+		group.Name = strings.ReplaceAll(group.Name, " and ", " & ")
 		groups[i] = group
 		i++
 	}
