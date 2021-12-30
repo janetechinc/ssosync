@@ -26,6 +26,11 @@ Some effort has been spent to insure that the datastore remains in sync:
 >- AWS_ACCESS_KEY_ID
 >- AWS_SECRET_ACCESS_KEY
 >- AWS_REGION
+>
+> NOTE: consul configuration is not implemented directly, the consul client supports some configuration via environment variables:
+>
+>- CONSUL_HTTP_ADDR
+>
 
 ---
 
