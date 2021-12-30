@@ -2,10 +2,10 @@ package datastore
 
 import (
 	"encoding/json"
+	"fmt"
 
 	consulapi "github.com/hashicorp/consul/api"
 	log "github.com/sirupsen/logrus"
-
 )
 
 type consulDatastore struct {
@@ -23,9 +23,9 @@ func NewConsulDatastore(prefix string, userObj string, groupObj string) (Datasto
 
 	return &consulDatastore{
 		baseDatastore: newBaseDatastore(),
-		kv:       consul.KV(),
-		userKey:  prefix+userObj,
-		groupKey: prefix+groupObj,
+		kv:            consul.KV(),
+		userKey:       prefix + userObj,
+		groupKey:      prefix + groupObj,
 	}, nil
 }
 
@@ -35,26 +35,26 @@ func (ds *consulDatastore) Load() error {
 
 	pair, _, err := ds.kv.Get(ds.userKey, nil)
 	if err != nil {
-		log.Error("error fetching users:", err)
+		return fmt.Errorf("error fetching users: %w", err)
 	} else if pair == nil {
-		log.Warningf("consul KV '%s' does not exist:", ds.userKey, err)
+		log.Warningf("consul KV '%s' does not exist: %s", ds.userKey, err)
 	} else {
 		err = json.Unmarshal(pair.Value, &ds.users)
 		if err != nil {
-			log.Error("failed to parse user list JSON from consul:", err)
+			return fmt.Errorf("failed to parse user list JSON from consul: %w", err)
 		}
 	}
 
 	log.Infof("loading groups from '%s'", ds.groupKey)
 	pair, _, err = ds.kv.Get(ds.groupKey, nil)
 	if err != nil {
-		log.Error("error fetching groups:", err)
+		return fmt.Errorf("error fetching groups: %w", err)
 	} else if pair == nil {
-		log.Warningf("consul KV '%s'' does noty exist:", ds.groupKey, err)
+		log.Warningf("consul KV '%s'' does noty exist: %s", ds.groupKey, err)
 	} else {
 		err = json.Unmarshal(pair.Value, &ds.groups)
 		if err != nil {
-			log.Error("failed to parse group list JSON from consul", err)
+			return fmt.Errorf("failed to parse group list JSON from consul: %w", err)
 		}
 	}
 
@@ -63,32 +63,31 @@ func (ds *consulDatastore) Load() error {
 
 func (ds *consulDatastore) Store() error {
 	log.Info("Storing user/group lists in consul")
+	log.Infof("storing users to '%s'", ds.userKey)
+
 	data, err := json.MarshalIndent(ds.users, "", "    ")
 	if err != nil {
-		log.Error("failed to convert user list to json", err)
-		return err
+		return fmt.Errorf("failed to convert user list to json: %w", err)
 	}
 	pair := consulapi.KVPair{
-		Key: "aws-ssosync/users",
+		Key:   ds.userKey,
 		Value: data,
 	}
 	_, err = ds.kv.Put(&pair, nil)
 	if err != nil {
-		log.Error("failed to PUT consul KV for key 'aws-ssosync/users'")
+		return fmt.Errorf("failed to PUT users in '%s': %w", ds.userKey, err)
 	}
 	data, err = json.MarshalIndent(ds.groups, "", "    ")
 	if err != nil {
-		log.Error("failed to convert group list to json", err)
-		return err
+		return fmt.Errorf("failed to convert group list to json: %w", err)
 	}
 	pair = consulapi.KVPair{
-		Key: "aws-ssosync/groups",
+		Key:   ds.groupKey,
 		Value: data,
 	}
 	_, err = ds.kv.Put(&pair, nil)
 	if err != nil {
-		log.Error("failed to PUT consul KV for key 'aws-ssosync/groups'")
+		return fmt.Errorf("failed to PUT groups in '%s': %w", ds.groupKey, err)
 	}
-	return err
+	return nil
 }
-

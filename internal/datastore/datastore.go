@@ -18,16 +18,16 @@ type Datastore interface {
 	DeleteGroup(string) error
 }
 
-type datastoreUsers  map[string]bool
+type datastoreUsers map[string]bool
 type datastoreGroups map[string]bool
 type baseDatastore struct {
 	users  datastoreUsers
 	groups datastoreGroups
 }
 
-func newBaseDatastore() (*baseDatastore) {
+func newBaseDatastore() *baseDatastore {
 	return &baseDatastore{
-		users: datastoreUsers{},
+		users:  datastoreUsers{},
 		groups: datastoreGroups{},
 	}
 }
@@ -44,10 +44,10 @@ func NewDatastore(cfg *config.Config) (Datastore, error) {
 }
 
 func (ds *baseDatastore) GetUsers() ([]string, error) {
-    users := make([]string, 0, len(ds.users))
-    for name := range ds.users {
-        users = append(users, name)
-    }
+	users := make([]string, 0, len(ds.users))
+	for name := range ds.users {
+		users = append(users, name)
+	}
 	return users, nil
 }
 
@@ -68,10 +68,10 @@ func (ds *baseDatastore) DeleteUser(user string) error {
 }
 
 func (ds *baseDatastore) GetGroups() ([]string, error) {
-    groups := make([]string, 0, len(ds.groups))
-    for name := range ds.groups {
-        groups = append(groups, name)
-    }
+	groups := make([]string, 0, len(ds.groups))
+	for name := range ds.groups {
+		groups = append(groups, name)
+	}
 	return groups, nil
 }
 
@@ -90,4 +90,3 @@ func (ds *baseDatastore) DeleteGroup(group string) error {
 	delete(ds.groups, group)
 	return nil
 }
-

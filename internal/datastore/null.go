@@ -1,7 +1,6 @@
 package datastore
 
-import (
-)
+import ()
 
 type nullDatastore struct {
 	*baseDatastore
@@ -13,11 +12,10 @@ func NewNullDatastore() Datastore {
 	}
 }
 
-func (ds *nullDatastore) Load() (error) {
+func (ds *nullDatastore) Load() error {
 	return nil
 }
 
 func (ds *nullDatastore) Store() error {
 	return nil
 }
-
