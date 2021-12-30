@@ -6,87 +6,86 @@ import (
 	"testing"
 )
 
-
 func TestFile(t *testing.T) {
 
-    const (
-        noSuchFileName     = "no_file.json"
-        emptyFileName      = "empty.json"
-        unreadableFileName = "unreadable.json"
-        userFileName       = "Users.json"
-        groupFileName      = "Groups.json"
-    )
-    
-    setup := func(t *testing.T) string {
-        prefix := t.TempDir() + "/"
-        // create or insure absent files for the tests
-        err := os.Remove(prefix + noSuchFileName)
-        if err != nil && !os.IsNotExist(err) {
-            t.Fatalf("could not remove file %s: %s", prefix+noSuchFileName, err)
-        }
-        f, err := os.Create(prefix + emptyFileName)
-        if err != nil {
-            t.Fatalf("could not create file %s: %s", prefix+emptyFileName, err)
-        }
-        f.Close()
-        f, err = os.Create(prefix + unreadableFileName)
-        if err != nil {
-            t.Fatalf("could not create file %s: %s", prefix+unreadableFileName, err)
-        }
-        err = f.Chmod(0)
-        if err != nil {
-            t.Fatalf("could not set file mode on %s: %s", prefix+unreadableFileName, err)
-        }
-        f.Close()
-        f, err = os.Create(prefix + userFileName)
-        if err != nil {
-            t.Fatalf("could not create valid user file %s: %s", prefix+userFileName, err)
-        }
-        _, err = f.WriteString("{\"user1@example.com\": true,\"user2@example.com\": true}")
-        if err != nil {
-            t.Fatalf("could not write valid user file %s: %s", prefix+userFileName, err)
-        }
-        f.Close()
-        f, err = os.Create(prefix + groupFileName)
-        if err != nil {
-            t.Fatalf("could not create valid group file %s: %s", prefix+groupFileName, err)
-        }
-        _, err = f.WriteString("{\"group1\": true,\"group2\": true}")
-        if err != nil {
-            t.Fatalf("could not write valid user file %s: %s", prefix+groupFileName, err)
-        }
-        f.Close()
-        return prefix
-    }
-    
-    load := func(t *testing.T, ds Datastore, success bool) {
-        if success {
-            err := ds.Load()
-            if err != nil {
-                t.Errorf("%s", err)
-            }
-        } else {
-            err := ds.Load()
-            if err == nil {
-                t.Errorf("should have failed")
-            }
-        }
-    }
-    
-    store := func(t *testing.T, ds Datastore, success bool) {
-        if success {
-            err := ds.Load()
-            if err != nil {
-                t.Errorf("%s", err)
-            }
-        } else {
-            err := ds.Load()
-            if err == nil {
-                t.Errorf("should have failed")
-            }
-        }
-    }
-    
+	const (
+		noSuchFileName     = "no_file.json"
+		emptyFileName      = "empty.json"
+		unreadableFileName = "unreadable.json"
+		userFileName       = "Users.json"
+		groupFileName      = "Groups.json"
+	)
+
+	setup := func(t *testing.T) string {
+		prefix := t.TempDir() + "/"
+		// create or insure absent files for the tests
+		err := os.Remove(prefix + noSuchFileName)
+		if err != nil && !os.IsNotExist(err) {
+			t.Fatalf("could not remove file %s: %s", prefix+noSuchFileName, err)
+		}
+		f, err := os.Create(prefix + emptyFileName)
+		if err != nil {
+			t.Fatalf("could not create file %s: %s", prefix+emptyFileName, err)
+		}
+		f.Close()
+		f, err = os.Create(prefix + unreadableFileName)
+		if err != nil {
+			t.Fatalf("could not create file %s: %s", prefix+unreadableFileName, err)
+		}
+		err = f.Chmod(0)
+		if err != nil {
+			t.Fatalf("could not set file mode on %s: %s", prefix+unreadableFileName, err)
+		}
+		f.Close()
+		f, err = os.Create(prefix + userFileName)
+		if err != nil {
+			t.Fatalf("could not create valid user file %s: %s", prefix+userFileName, err)
+		}
+		_, err = f.WriteString("{\"user1@example.com\": true,\"user2@example.com\": true}")
+		if err != nil {
+			t.Fatalf("could not write valid user file %s: %s", prefix+userFileName, err)
+		}
+		f.Close()
+		f, err = os.Create(prefix + groupFileName)
+		if err != nil {
+			t.Fatalf("could not create valid group file %s: %s", prefix+groupFileName, err)
+		}
+		_, err = f.WriteString("{\"group1\": true,\"group2\": true}")
+		if err != nil {
+			t.Fatalf("could not write valid user file %s: %s", prefix+groupFileName, err)
+		}
+		f.Close()
+		return prefix
+	}
+
+	load := func(t *testing.T, ds Datastore, success bool) {
+		if success {
+			err := ds.Load()
+			if err != nil {
+				t.Errorf("%s", err)
+			}
+		} else {
+			err := ds.Load()
+			if err == nil {
+				t.Errorf("should have failed")
+			}
+		}
+	}
+
+	store := func(t *testing.T, ds Datastore, success bool) {
+		if success {
+			err := ds.Load()
+			if err != nil {
+				t.Errorf("%s", err)
+			}
+		} else {
+			err := ds.Load()
+			if err == nil {
+				t.Errorf("should have failed")
+			}
+		}
+	}
+
 	log.SetLevel(log.ErrorLevel)
 	type TestType uint
 	const (

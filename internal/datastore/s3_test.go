@@ -3,28 +3,46 @@ package datastore
 import (
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 
-	consulapi "github.com/hashicorp/consul/api"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
 	log "github.com/sirupsen/logrus"
 )
 
 //
-// Use a local consul in dev mode
-// Run with `consul agent -dev`
+// This test requires s3 permissions
 //
 // then run the tests with these exported:
 // export CONSUL_HTTP_ADDR=localhost:8500
 // export CONSUL_TEST_PREFIX=ssosync_datastore_test
 //
+// required AWS auth env vars for this test to run:
+// AWS_ACCESS_KEY_ID
+// AWS_SECRET_ACCESS_KEY
+// AWS_REGION
 //
-func TestConsul(t *testing.T) {
-	// skip if CONSUL_HTTP_ADDR is not set
-	if _, ok := os.LookupEnv("CONSUL_HTTP_ADDR"); !ok {
-		t.Skip("CONSUL_HTTP_ADDR is not set")
+// plus these needed for the test:
+// DATASTORE_S3_BUCKET - aws bucket to use
+// DATASTORE_S3_FOLDER - folder in bucket
+//
+// permissions required for bucket/folder are:
+// PutObject, DeleteObject, ListBucket, GetObject
+//
+func TestS3(t *testing.T) {
+	reqEnvs := []string{
+		"AWS_ACCESS_KEY_ID",
+		"AWS_SECRET_ACCESS_KEY",
+		"AWS_REGION",
+		"DATASTORE_S3_BUCKET",
+		"DATASTORE_S3_FOLDER",
 	}
-	if _, ok := os.LookupEnv("CONSUL_TEST_PREFIX"); !ok {
-		t.Skip("CONSUL_TEST_PREFIX is not set")
+	for _, env := range reqEnvs {
+		if _, ok := os.LookupEnv(env); !ok {
+			t.Skipf("%s is not set", env)
+		}
 	}
 
 	const (
@@ -34,33 +52,42 @@ func TestConsul(t *testing.T) {
 		groupFileName   = "Groups.json"
 	)
 
-	consul, err := consulapi.NewClient(consulapi.DefaultConfig())
+	sess, err := session.NewSession()
 	if err != nil {
 		t.Errorf("can't connect to consul: %s", err)
 	}
 
-	kv := consul.KV()
+	s3client := s3.New(sess)
 
 	prefixCount := 0
+	bucket := os.Getenv("DATASTORE_S3_BUCKET")
+	folder := os.Getenv("DATASTORE_S3_FOLDER")
+    if !strings.HasSuffix(folder, "/") {
+        folder = folder+"/"
+    }
 
 	put := func(key string, value string) {
-		pair := consulapi.KVPair{
-			Key:   key,
-			Value: []byte(value),
+		input := &s3.PutObjectInput{
+			Body:   aws.ReadSeekCloser(strings.NewReader(value)),
+			Bucket: aws.String(bucket),
+			Key:    aws.String(key),
 		}
-		_, err = kv.Put(&pair, nil)
+		_, err = s3client.PutObject(input)
 		if err != nil {
 			t.Errorf("failed PUT key %s: %s", key, err)
 		}
 	}
 	setup := func() string {
-		prefix := fmt.Sprintf("%s%d/", os.Getenv("CONSUL_TEST_PREFIX"), prefixCount)
+		prefix := fmt.Sprintf("%s%d-", folder, prefixCount)
 		prefixCount += 1
 		// create or insure absent files for the tests
-
-		_, err := kv.Delete(prefix+noSuchFileName, nil)
+		input := &s3.DeleteObjectInput{
+			Bucket: aws.String(bucket),
+			Key:    aws.String(prefix + noSuchFileName),
+		}
+		_, err := s3client.DeleteObject(input)
 		if err != nil {
-			t.Fatalf("could not remove file %s: %s", prefix+noSuchFileName, err)
+			t.Fatalf("could not remove key %s: %s", prefix+noSuchFileName, err)
 		}
 		put(prefix+invalidFileName, "[x]")
 		put(prefix+userFileName, "{\"user1@example.com\": true,\"user2@example.com\": true}")
@@ -124,7 +151,7 @@ func TestConsul(t *testing.T) {
 	for _, data := range tests {
 		data := data
 		prefix := setup()
-		ds, err := NewConsulDatastore(prefix, data.userFile, data.groupFile)
+		ds, err := NewS3Datastore(bucket, prefix+data.userFile, prefix+data.groupFile)
 		if err != nil {
 			t.Errorf("failed to create datastore for test '%s': %s", data.desc, err)
 		}
