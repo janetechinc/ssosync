@@ -544,14 +544,12 @@ func (s *syncGSuite) getAWSGroupsAndUsers(awsGroups []*aws.Group, awsUsers []*aw
 	for _, awsGroup := range awsGroups {
 
 		users := make([]*aws.User, 0)
-		log := log.WithFields(log.Fields{"group": awsGroup.DisplayName})
 
-		log.Debug("get group members from aws")
+		log.WithFields(log.Fields{"group": awsGroup.DisplayName}).Debug("get group members from aws")
 		// NOTE: AWS has not implemented yet some method to get the groups members https://docs.aws.amazon.com/singlesignon/latest/developerguide/listgroups.html
 		// so, we need to check each user in each group which are too many unnecessary API calls
 		for _, user := range awsUsers {
-
-			log.Debug("checking if user is member of")
+			log.WithFields(log.Fields{"group": awsGroup.DisplayName, "user": user.Username}).Debug("checking if user is member of")
 			found, err := s.aws.IsUserInGroup(user, awsGroup)
 			if err != nil {
 				return nil, err
