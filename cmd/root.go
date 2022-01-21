@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/awslabs/ssosync/internal"
 	"github.com/awslabs/ssosync/internal/config"
@@ -134,25 +135,41 @@ func configLambda() {
 	svc := secretsmanager.New(s)
 	secrets := config.NewSecrets(svc)
 
-	unwrap, err := secrets.GoogleAdminEmail()
+	name := "SSOSyncGoogleAdminEmail"
+	if strings.HasPrefix(cfg.GoogleAdmin, "arn:") {
+		name = cfg.GoogleAdmin
+	}
+	unwrap, err := secrets.GetSecret(name)
 	if err != nil {
 		log.Fatalf(errors.Wrap(err, "cannot read config").Error())
 	}
 	cfg.GoogleAdmin = unwrap
 
-	unwrap, err = secrets.GoogleCredentials()
+	name = "SSOSyncGoogleCredentials"
+	if strings.HasPrefix(cfg.GoogleCredentials, "arn:") {
+		name = cfg.GoogleCredentials
+	}
+	unwrap, err = secrets.GetSecret(name)
 	if err != nil {
 		log.Fatalf(errors.Wrap(err, "cannot read config").Error())
 	}
 	cfg.GoogleCredentials = unwrap
 
-	unwrap, err = secrets.SCIMAccessToken()
+	name = "SSOSyncSCIMAccessToken"
+	if strings.HasPrefix(cfg.SCIMAccessToken, "arn:") {
+		name = cfg.SCIMAccessToken
+	}
+	unwrap, err = secrets.GetSecret(name)
 	if err != nil {
 		log.Fatalf(errors.Wrap(err, "cannot read config").Error())
 	}
 	cfg.SCIMAccessToken = unwrap
 
-	unwrap, err = secrets.SCIMEndpointUrl()
+	name = "SSOSyncSCIMEndpointUrl"
+	if strings.HasPrefix(cfg.SCIMEndpoint, "arn:") {
+		name = cfg.SCIMEndpoint
+	}
+	unwrap, err = secrets.GetSecret(name)
 	if err != nil {
 		log.Fatalf(errors.Wrap(err, "cannot read config").Error())
 	}
