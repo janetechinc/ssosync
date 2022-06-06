@@ -1,5 +1,7 @@
 # SSO Sync (with patches)
 
+>NOTE: This this version is NOT in the AWS Serverless Application Repository and has not been tested in a Lambda deployment.
+> 
 >This version of `ssosync` has a number of patches applied:
 >
 >- [#55](https://github.com/awslabs/ssosync/pull/55) Accept multiple --group-match for OR search.
@@ -7,8 +9,6 @@
 >- [#47](https://github.com/awslabs/ssosync/pull/47) Fixed issue [#40](https://github.com/awslabs/ssosync/issues/40) and [#42](https://github.com/awslabs/ssosync/issues/42) (404 when group just created)
 >- [#45](https://github.com/awslabs/ssosync/pull/45) Sync more then 50 users with sync-method groups
 >
-> NOTE: This this version is NOT in the AWS Serverless Application Repository and has not been tested in a Lambda deployment.
-> 
 >In addition, because the AWS SCIM implementation can only return 50 users or groups and has no pagination support, a datastore has been implemented to keep track of users and groups.
 For users only the email address is stored and for groups only the group name.
 Some effort has been spent to insure that the datastore remains in sync:
