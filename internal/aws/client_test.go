@@ -27,6 +27,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/awslabs/ssosync/internal/datastore"
 	"github.com/awslabs/ssosync/internal/aws/mock"
 )
 
@@ -77,7 +78,7 @@ func TestNewClient(t *testing.T) {
 	c, err := NewClient(x, &Config{
 		Endpoint: ":foo",
 		Token:    "bearerToken",
-	})
+	}, 	datastore.NewNullDatastore())
 	assert.Error(t, err)
 	assert.Nil(t, c)
 }
@@ -91,7 +92,7 @@ func TestSendRequestBadUrl(t *testing.T) {
 	c, err := NewClient(x, &Config{
 		Endpoint: "https://scim.example.com/",
 		Token:    "bearerToken",
-	})
+	}, 	datastore.NewNullDatastore())
 	assert.NoError(t, err)
 	cc := c.(*client)
 
@@ -109,7 +110,7 @@ func TestSendRequestBadStatusCode(t *testing.T) {
 	c, err := NewClient(x, &Config{
 		Endpoint: "https://scim.example.com/",
 		Token:    "bearerToken",
-	})
+	}, 	datastore.NewNullDatastore())
 	assert.NoError(t, err)
 	cc := c.(*client)
 
@@ -139,7 +140,7 @@ func TestSendRequestCheckAuthHeader(t *testing.T) {
 	c, err := NewClient(x, &Config{
 		Endpoint: "https://scim.example.com/",
 		Token:    "bearerToken",
-	})
+	}, datastore.NewNullDatastore())
 	assert.NoError(t, err)
 	cc := c.(*client)
 
@@ -174,7 +175,7 @@ func TestSendRequestWithBodyCheckHeaders(t *testing.T) {
 	c, err := NewClient(x, &Config{
 		Endpoint: "https://scim.example.com/",
 		Token:    "bearerToken",
-	})
+	}, datastore.NewNullDatastore())
 	assert.NoError(t, err)
 	cc := c.(*client)
 
@@ -211,7 +212,7 @@ func TestClient_IsUserInGroup(t *testing.T) {
 	c, err := NewClient(x, &Config{
 		Endpoint: "https://scim.example.com/",
 		Token:    "bearerToken",
-	})
+	}, datastore.NewNullDatastore())
 	assert.NoError(t, err)
 
 	testUser := &User{
@@ -299,7 +300,7 @@ func TestClient_FindUserByEmail(t *testing.T) {
 	c, err := NewClient(x, &Config{
 		Endpoint: "https://scim.example.com/",
 		Token:    "bearerToken",
-	})
+	}, datastore.NewNullDatastore())
 	assert.NoError(t, err)
 
 	calledURL, _ := url.Parse("https://scim.example.com/Users")
@@ -375,7 +376,7 @@ func TestClient_FindGroupByDisplayName(t *testing.T) {
 	c, err := NewClient(x, &Config{
 		Endpoint: "https://scim.example.com/",
 		Token:    "bearerToken",
-	})
+	}, datastore.NewNullDatastore())
 	assert.NoError(t, err)
 
 	calledURL, _ := url.Parse("https://scim.example.com/Groups")
@@ -451,7 +452,7 @@ func TestClient_DeleteGroup(t *testing.T) {
 	c, err := NewClient(x, &Config{
 		Endpoint: "https://scim.example.com/",
 		Token:    "bearerToken",
-	})
+	}, datastore.NewNullDatastore())
 	assert.NoError(t, err)
 
 	g := &Group{
@@ -490,7 +491,7 @@ func TestClient_DeleteUser(t *testing.T) {
 	c, err := NewClient(x, &Config{
 		Endpoint: "https://scim.example.com/",
 		Token:    "bearerToken",
-	})
+	}, datastore.NewNullDatastore())
 	assert.NoError(t, err)
 
 	u := &User{
@@ -533,7 +534,7 @@ func TestClient_CreateUser(t *testing.T) {
 	c, err := NewClient(x, &Config{
 		Endpoint: "https://scim.example.com/",
 		Token:    "bearerToken",
-	})
+	}, datastore.NewNullDatastore())
 	assert.NoError(t, err)
 
 	calledURL, _ := url.Parse("https://scim.example.com/Users")
@@ -578,7 +579,7 @@ func TestClient_UpdateUser(t *testing.T) {
 	c, err := NewClient(x, &Config{
 		Endpoint: "https://scim.example.com/",
 		Token:    "bearerToken",
-	})
+	}, datastore.NewNullDatastore())
 	assert.NoError(t, err)
 
 	calledURL, _ := url.Parse("https://scim.example.com/Users/userId")
@@ -623,7 +624,7 @@ func TestClient_CreateGroup(t *testing.T) {
 	c, err := NewClient(x, &Config{
 		Endpoint: "https://scim.example.com/",
 		Token:    "bearerToken",
-	})
+	}, datastore.NewNullDatastore())
 	assert.NoError(t, err)
 
 	calledURL, _ := url.Parse("https://scim.example.com/Groups")
@@ -664,7 +665,7 @@ func TestClient_AddUserToGroup(t *testing.T) {
 	c, err := NewClient(x, &Config{
 		Endpoint: "https://scim.example.com/",
 		Token:    "bearerToken",
-	})
+	}, datastore.NewNullDatastore())
 	assert.NoError(t, err)
 
 	g := &Group{
@@ -710,7 +711,7 @@ func TestClient_RemoveUserFromGroup(t *testing.T) {
 	c, err := NewClient(x, &Config{
 		Endpoint: "https://scim.example.com/",
 		Token:    "bearerToken",
-	})
+	}, datastore.NewNullDatastore())
 	assert.NoError(t, err)
 
 	g := &Group{

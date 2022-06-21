@@ -24,7 +24,7 @@ packaged.yaml
 # IDE
 .idea/
 .vscode/
-
+*.code-workspace
 # SAM
 .aws-sam/
 

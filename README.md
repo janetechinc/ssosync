@@ -1,4 +1,40 @@
-# SSO Sync
+# SSO Sync (with patches)
+
+>NOTE: This this version is NOT in the AWS Serverless Application Repository and has not been tested in a Lambda deployment.
+> 
+>This version of `ssosync` has a number of patches applied:
+>
+>- [#55](https://github.com/awslabs/ssosync/pull/55) Accept multiple --group-match for OR search.
+>- [#58](https://github.com/awslabs/ssosync/pull/58) Fix issue [#27](https://github.com/awslabs/ssosync/issues/27) (Support nested groups )
+>- [#47](https://github.com/awslabs/ssosync/pull/47) Fixed issue [#40](https://github.com/awslabs/ssosync/issues/40) and [#42](https://github.com/awslabs/ssosync/issues/42) (404 when group just created)
+>- [#45](https://github.com/awslabs/ssosync/pull/45) Sync more then 50 users with sync-method groups
+>
+>In addition, because the AWS SCIM implementation can only return 50 users or groups and has no pagination support, a datastore has been implemented to keep track of users and groups.
+For users only the email address is stored and for groups only the group name.
+Some effort has been spent to insure that the datastore remains in sync:
+>
+>- when the user or group list is requested we check that each user exists in AWS and prune any that don't
+>- when a new user or group is being created always update and save the datastore first
+>- when a user or group is deleted we update the datastore after the AWS operation
+>
+>Currently the datastore has three implementations:
+>
+>- `file` - local disk storage
+>- `consul` - consul KV store (note: authentication and ssl num implemented!)
+>- `s3` - AWS S3 storage
+>
+> NOTE: currently authentication for `s3` is not implemented directly, the AWS client supports a few methods include using environment variables:
+>
+>- AWS_ACCESS_KEY_ID
+>- AWS_SECRET_ACCESS_KEY
+>- AWS_REGION
+>
+> NOTE: consul configuration is not implemented directly, the consul client supports some configuration via environment variables:
+>
+>- CONSUL_HTTP_ADDR
+>
+
+---
 
 ![Github Action](https://github.com/awslabs/ssosync/workflows/main/badge.svg)
 <a href='https://github.com/jpoles1/gopherbadger' target='_blank'>![gopherbadger-tag-do-not-edit](https://img.shields.io/badge/Go%20Coverage-42%25-brightgreen.svg?longCache=true&style=flat)</a>
@@ -115,11 +151,15 @@ Usage:
 
 Flags:
   -t, --access-token string         AWS SSO SCIM API Access Token
+      --datastore-group-obj string   Datastore object name for storing groups (default "Groups.json")
+  -p, --datastore-prefix string      Datastore prefix or bucket (default "ssosync-")
+  -D, --datastore-type string        Datastore type (default "file")
+      --datastore-user-obj string    Datastore object name for storing users (default "Users.json")
   -d, --debug                       enable verbose / debug logging
   -e, --endpoint string             AWS SSO SCIM API Endpoint
   -u, --google-admin string         Google Workspace admin user email
   -c, --google-credentials string   path to Google Workspace credentials file (default "credentials.json")
-  -g, --group-match string          Google Workspace Groups filter query parameter, example: 'name:Admin* email:aws-*', see: https://developers.google.com/admin-sdk/directory/v1/guides/search-groups
+  -g, --group-match strings         Google Workspace Groups filter query parameter, example: 'name:Admin* email:aws-*', see: https://developers.google.com/admin-sdk/directory/v1/guides/search-groups (You can specify this flag multiple times for OR clause)
   -h, --help                        help for ssosync
       --ignore-groups strings       ignores these Google Workspace groups
       --ignore-users strings        ignores these Google Workspace users
@@ -142,6 +182,8 @@ The function has `two behaviour` and these are controlled by the `--sync-method`
 
 Flags Notes:
 
+* `--datastore-type` can be one of `file`, `consul`, or `s3`
+* `--datastore-prefix` is a bucket name for `s3` and a prefix for both `file` and `consul` datastore types.
 * `--include-groups` only works when `--sync-method` is `users_groups`
 * `--ignore-users` works for both `--sync-method` values.  Example: `--ignore-users user1@example.com,user2@example.com` or `SSOSYNC_IGNORE_USERS=user1@example.com,user2@example.com`
 * `--ignore-groups` works for both `--sync-method` values. Example: --ignore-groups group1@example.com,group1@example.com` or `SSOSYNC_IGNORE_GROUPS=group1@example.com,group1@example.com`

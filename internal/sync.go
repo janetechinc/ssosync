@@ -19,9 +19,11 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"strings"
 
 	"github.com/awslabs/ssosync/internal/aws"
 	"github.com/awslabs/ssosync/internal/config"
+	"github.com/awslabs/ssosync/internal/datastore"
 	"github.com/awslabs/ssosync/internal/google"
 	"github.com/hashicorp/go-retryablehttp"
 
@@ -32,8 +34,8 @@ import (
 // SyncGSuite is the interface for synchronizing users/groups
 type SyncGSuite interface {
 	SyncUsers(string) error
-	SyncGroups(string) error
-	SyncGroupsUsers(string) error
+	SyncGroups([]string) error
+	SyncGroupsUsers([]string) error
 }
 
 // SyncGSuite is an object type that will synchronize real users and groups
@@ -165,10 +167,8 @@ func (s *syncGSuite) SyncUsers(query string) error {
 //  name:contact* email:contact*
 //  name:Admin* email:aws-*
 //  email:aws-*
-func (s *syncGSuite) SyncGroups(query string) error {
-
-	log.WithField("query", query).Debug("get google groups")
-	googleGroups, err := s.google.GetGroups(query)
+func (s *syncGSuite) SyncGroups(queries []string) error {
+	googleGroups, err := s.getGroups(queries)
 	if err != nil {
 		return err
 	}
@@ -270,10 +270,8 @@ func (s *syncGSuite) SyncGroups(query string) error {
 //  4) add groups in aws and add its members, these were added in google
 //  5) validate equals aws an google groups members
 //  6) delete groups in aws, these were deleted in google
-func (s *syncGSuite) SyncGroupsUsers(query string) error {
-
-	log.WithField("query", query).Info("get google groups")
-	googleGroups, err := s.google.GetGroups(query)
+func (s *syncGSuite) SyncGroupsUsers(queries []string) error {
+	googleGroups, err := s.getGroups(queries)
 	if err != nil {
 		return err
 	}
@@ -364,14 +362,18 @@ func (s *syncGSuite) SyncGroupsUsers(query string) error {
 	// add aws users (added in google)
 	log.Debug("creating aws users added in google")
 	for _, awsUser := range addAWSUsers {
+		// Due to limits in users listing, the user may already exists
+		// see https://docs.aws.amazon.com/singlesignon/latest/developerguide/listusers.html
+		user, _ := s.aws.FindUserByEmail(awsUser.Username)
+		if user == nil {
+			log := log.WithFields(log.Fields{"user": awsUser.Username})
 
-		log := log.WithFields(log.Fields{"user": awsUser.Username})
-
-		log.Info("creating user")
-		_, err := s.aws.CreateUser(awsUser)
-		if err != nil {
-			log.Error("error creating user")
-			return err
+			log.Info("creating user")
+			_, err := s.aws.CreateUser(awsUser)
+			if err != nil {
+				log.Error("error creating user")
+				return err
+			}
 		}
 	}
 
@@ -542,14 +544,12 @@ func (s *syncGSuite) getAWSGroupsAndUsers(awsGroups []*aws.Group, awsUsers []*aw
 	for _, awsGroup := range awsGroups {
 
 		users := make([]*aws.User, 0)
-		log := log.WithFields(log.Fields{"group": awsGroup.DisplayName})
 
-		log.Debug("get group members from aws")
+		log.WithFields(log.Fields{"group": awsGroup.DisplayName}).Debug("get group members from aws")
 		// NOTE: AWS has not implemented yet some method to get the groups members https://docs.aws.amazon.com/singlesignon/latest/developerguide/listgroups.html
 		// so, we need to check each user in each group which are too many unnecessary API calls
 		for _, user := range awsUsers {
-
-			log.Debug("checking if user is member of")
+			log.WithFields(log.Fields{"group": awsGroup.DisplayName, "user": user.Username}).Debug("checking if user is member of")
 			found, err := s.aws.IsUserInGroup(user, awsGroup)
 			if err != nil {
 				return nil, err
@@ -562,6 +562,35 @@ func (s *syncGSuite) getAWSGroupsAndUsers(awsGroups []*aws.Group, awsUsers []*aw
 		awsGroupsUsers[awsGroup.DisplayName] = users
 	}
 	return awsGroupsUsers, nil
+}
+
+// getGroups returns Google Groups from multiple queries.
+func (s *syncGSuite) getGroups(queries []string) ([]*admin.Group, error) {
+	uniqueGroups := map[string]*admin.Group{}
+
+	for _, query := range queries {
+		log.WithField("query", query).Debug("get google groups")
+		googleGroups, err := s.google.GetGroups(query)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, group := range googleGroups {
+			uniqueGroups[group.Id] = group
+		}
+	}
+
+	groups := make([]*admin.Group, len(uniqueGroups))
+	var i int
+	for _, group := range uniqueGroups {
+		// TODO: remove this when aws fixes this: aws request parsing bug: rename groups containg " and "
+		// - These cause AWS to mis-parse the request and return a 400 status code
+		group.Name = strings.ReplaceAll(group.Name, " and ", " & ")
+		groups[i] = group
+		i++
+	}
+
+	return groups, nil
 }
 
 // getGroupOperations returns the groups of AWS that must be added, deleted and are equals
@@ -698,12 +727,22 @@ func DoSync(ctx context.Context, cfg *config.Config) error {
 		return err
 	}
 
+	ds, err := datastore.NewDatastore(cfg)
+	if err != nil {
+		return err
+	}
+
 	awsClient, err := aws.NewClient(
 		httpClient,
 		&aws.Config{
 			Endpoint: cfg.SCIMEndpoint,
 			Token:    cfg.SCIMAccessToken,
-		})
+		}, ds)
+	if err != nil {
+		return err
+	}
+
+	err = ds.Load()
 	if err != nil {
 		return err
 	}
@@ -726,6 +765,11 @@ func DoSync(ctx context.Context, cfg *config.Config) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	err = ds.Store()
+	if err != nil {
+		return err
 	}
 
 	return nil
