@@ -544,6 +544,8 @@ func (c *client) GetGroups() ([]*Group, error) {
 		return nil, err
 	}
 
+	knownGroupNames := make(map[string]bool)
+
 	// fetch each group from AWS skipping any groups that do not exist
 	groups := make([]*Group, 0, len(groupNames))
 	for _, name := range groupNames {
@@ -555,49 +557,54 @@ func (c *client) GetGroups() ([]*Group, error) {
 			if err != nil {
 				log.Warning("GetGroups failed to remove group from datastore")
 			} else {
-				log.Info("GetGroups removed non-existant group from list")
+				log.Info("GetGroups removed non-existent group from list")
 			}
 			continue
 		}
 		if err != nil {
-			log.Errorf("GetGroups failed to find group! with: %s", err)
+			log.WithError(err).Error("GetGroups failed to find group!")
 			return nil, err
 		}
 		groups = append(groups, group)
+		knownGroupNames[group.DisplayName] = true
 	}
+
+	startURL, err := url.Parse(c.endpointURL.String())
+	if err != nil {
+		return nil, err
+	}
+
+	startURL.Path = path.Join(startURL.Path, "/Groups")
+
+	resp, err := c.sendRequest(http.MethodGet, startURL.String())
+	if err != nil {
+		log.Error(string(resp))
+		return nil, err
+	}
+
+	var r GroupFilterResults
+	err = json.Unmarshal(resp, &r)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range r.Resources {
+		group := &r.Resources[i]
+		log := log.WithFields(log.Fields{"group": group.DisplayName})
+
+		if ok1, ok2 := knownGroupNames[group.DisplayName]; !ok1 || !ok2 {
+			groups = append(groups, group)
+			knownGroupNames[group.DisplayName] = true
+			err = c.datastore.AddGroup(group.DisplayName)
+			if err != nil {
+				log.Warning("GetGroups failed to add group to datastore")
+			} else {
+				log.Info("GetGroups added pre-existent group to datastore")
+			}
+		}
+	}
+
 	return groups, nil
-
-	/*
-	    	startURL, err := url.Parse(c.endpointURL.String())
-	   	if err != nil {
-	   		return nil, err
-	   	}
-
-	   	startURL.Path = path.Join(startURL.Path, "/Groups")
-
-	   	resp, err := c.sendRequest(http.MethodGet, startURL.String())
-	   	if err != nil {
-	   		log.Error(string(resp))
-	   		return nil, err
-	   	}
-
-	   	var r GroupFilterResults
-	   	err = json.Unmarshal(resp, &r)
-	   	if err != nil {
-	   		return nil, err
-	   	}
-
-	   	// if r.TotalResults != 1 {
-	   	// 	return nil, ErrNoGroupsFound
-	   	// }
-
-	   	gps := make([]*Group, len(r.Resources))
-	   	for i := range r.Resources {
-	   		gps[i] = &r.Resources[i]
-	   	}
-
-	   	return gps, nil
-	*/
 }
 
 // GetGroupMembers will return existing groups
