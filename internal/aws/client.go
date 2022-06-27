@@ -662,58 +662,64 @@ func (c *client) GetUsers() ([]*User, error) {
 		return nil, err
 	}
 
+	knownUserNames := make(map[string]bool)
+
 	// fetch each user from AWS skipping any users that do not exist
 	users := make([]*User, 0, len(userNames))
 	for _, name := range userNames {
-		log := log.WithFields(log.Fields{"user": name})
-		log.Info("checking if user exists in AWS")
+		userLog := log.WithFields(log.Fields{"user": name})
+		userLog.Info("Checking if user exists in AWS")
 		user, err := c.FindUserByEmail(name)
 		if err == ErrUserNotFound {
 			err = c.datastore.DeleteUser(name)
 			if err != nil {
-				log.Error("GetUsers failed to remove user from datastore")
+				userLog.Error("Failed to remove user from datastore")
 			} else {
-				log.Info("GetUsers removed non-existant user from list")
+				userLog.Info("Removed non-existent user from list")
 			}
 			continue
 		}
 		if err != nil {
-			log.Errorf("GetUsers failed to find user! with: %s", err)
+			userLog.WithError(err).Error("Failed to look up user on AWS")
 			return nil, err
 		}
 		users = append(users, user)
+		knownUserNames[user.Username] = true
 	}
+
+	startURL, err := url.Parse(c.endpointURL.String())
+	if err != nil {
+		return nil, err
+	}
+	startURL.Path = path.Join(startURL.Path, "/Users")
+
+	resp, err := c.sendRequest(http.MethodGet, startURL.String())
+	if err != nil {
+		log.WithError(err).Error("Failed to get users from AWS")
+		return nil, err
+	}
+
+	var r UserFilterResults
+	err = json.Unmarshal(resp, &r)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range r.Resources {
+		user := &r.Resources[i]
+		userLog := log.WithFields(log.Fields{"user": user.Username})
+
+		if ok1, ok2 := knownUserNames[user.Username]; !ok1 || !ok2 {
+			users = append(users, user)
+			knownUserNames[user.Username] = true
+			err = c.datastore.AddUser(user.Username)
+			if err != nil {
+				userLog.Warning("GetUsers failed to add user to datastore")
+			} else {
+				userLog.Info("GetUsers added pre-existent user to datastore")
+			}
+		}
+	}
+
 	return users, nil
-
-	/*
-		startURL, err := url.Parse(c.endpointURL.String())
-		if err != nil {
-			return nil, err
-		}
-
-		startURL.Path = path.Join(startURL.Path, "/Users")
-
-		resp, err := c.sendRequest(http.MethodGet, startURL.String())
-		if err != nil {
-			log.Error(string(resp))
-			return nil, err
-		}
-
-		var r UserFilterResults
-		err = json.Unmarshal(resp, &r)
-		if err != nil {
-			return nil, err
-		}
-
-		// if r.TotalResults != 1 {
-		// 	return nil, ErrUserNotFound
-		// }
-
-		usrs := make([]*User, len(r.Resources))
-		for i := range r.Resources {
-			usrs[i] = &r.Resources[i]
-		}
-
-		return usrs, nil
-	*/
 }
